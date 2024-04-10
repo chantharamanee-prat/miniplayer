@@ -53,21 +53,27 @@ class Miniplayer extends StatefulWidget {
   ///Used to set the color of the background box shadow
   final Color backgroundBoxShadow;
 
-  const Miniplayer({
-    Key? key,
-    required this.minHeight,
-    required this.maxHeight,
-    required this.builder,
-    this.curve = Curves.easeOut,
-    this.elevation = 0,
-    this.backgroundColor,
-    this.valueNotifier,
-    this.duration = const Duration(milliseconds: 300),
-    this.onDismiss,
-    this.onDismissed,
-    this.controller,
-    this.backgroundBoxShadow = Colors.black45,
-  }) : super(key: key);
+  final bool disabled;
+
+  final Function(PanelState)? onStateChange;
+
+  const Miniplayer(
+      {Key? key,
+      required this.minHeight,
+      required this.maxHeight,
+      required this.builder,
+      this.curve = Curves.easeOut,
+      this.elevation = 0,
+      this.backgroundColor,
+      this.valueNotifier,
+      this.duration = const Duration(milliseconds: 300),
+      this.onDismiss,
+      this.onDismissed,
+      this.controller,
+      this.backgroundBoxShadow = Colors.black45,
+      this.disabled = false,
+      this.onStateChange})
+      : super(key: key);
 
   @override
   _MiniplayerState createState() => _MiniplayerState();
@@ -162,7 +168,7 @@ class _MiniplayerState extends State<Miniplayer> with TickerProviderStateMixin {
 
     return MiniplayerWillPopScope(
       onWillPop: () async {
-        if (heightNotifier.value > widget.minHeight) {
+        if (heightNotifier.value > widget.minHeight && !widget.disabled) {
           _snapToPosition(PanelState.MIN);
           return false;
         }
@@ -179,7 +185,9 @@ class _MiniplayerState extends State<Miniplayer> with TickerProviderStateMixin {
             children: [
               if (_percentage > 0)
                 GestureDetector(
-                  onTap: () => _animateToHeight(widget.minHeight),
+                  onTap: () {
+                    if (!widget.disabled) _animateToHeight(widget.minHeight);
+                  },
                   child: Opacity(
                     opacity: borderDouble(
                         minRange: 0.0, maxRange: 1.0, value: _percentage),
@@ -309,6 +317,10 @@ class _MiniplayerState extends State<Miniplayer> with TickerProviderStateMixin {
 
   ///Determines whether the panel should be updated in height or discarded
   void _handleHeightChange({bool animation = false}) {
+    if (widget.disabled) {
+      return;
+    }
+
     ///Drag above minHeight
     if (_dragHeight >= widget.minHeight) {
       if (dragDownPercentage.value != 0) {
@@ -343,6 +355,7 @@ class _MiniplayerState extends State<Miniplayer> with TickerProviderStateMixin {
 
   ///Animates the panel height according to a SnapPoint
   void _snapToPosition(PanelState snapPosition) {
+    _onStateChange(snapPosition);
     switch (snapPosition) {
       case PanelState.MAX:
         _animateToHeight(widget.maxHeight);
@@ -413,6 +426,12 @@ class _MiniplayerState extends State<Miniplayer> with TickerProviderStateMixin {
           duration: widget.controller!.value!.duration,
         );
         break;
+    }
+  }
+
+  void _onStateChange(PanelState state) {
+    if (widget.onStateChange != null) {
+      widget.onStateChange!(state);
     }
   }
 }
